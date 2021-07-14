@@ -5,9 +5,12 @@ import {
   StyleSheet,
   TouchableOpacity,
   TextInput,
+  Alert,
 } from "react-native";
 import * as Permissions from "expo-permissions";
 import { BarCodeScanner } from "expo-barcode-scanner";
+import db from "../config";
+import firebase from "firebase";
 export default class Transaction extends React.Component {
   constructor() {
     super();
@@ -28,12 +31,56 @@ export default class Transaction extends React.Component {
     });
   };
   handleBarcodeScanner = async ({ type, data }) => {
-    this.setState({
-      scannedDataBook: this.state.buttonState === "BookID" ? data : "",
-      scannedDataStudent: this.state.buttonState === "StudentID" ? data : "",
-      scanned: true,
-      buttonState: "normal",
+    if (this.state.buttonState === "BookID") {
+      this.setState({
+        scannedDataBook: data,
+
+        scanned: true,
+        buttonState: "normal",
+      });
+    } else if (this.state.buttonState === "StudentID") {
+      this.setState({
+        scannedDataStudent: data,
+
+        scanned: true,
+        buttonState: "normal",
+      });
+    }
+  };
+  handleTransaction = async () => {
+    db.collection("books")
+      .doc(this.state.scannedDataBook)
+      .get()
+      .then((doc) => {
+        console.log(doc.data());
+        var book = doc.data();
+        if (book.availability === true) {
+          this.initiateBookIssue();
+          console.log("bookIssued");
+        } else {
+          this.initiateBookReturn();
+          console.log("bookReturned");
+        }
+      });
+  };
+
+  initiateBookIssue = async () => {
+    db.collection("transaction").add({
+      studentId: this.state.scannedDataStudent,
+      bookId: this.state.scannedDataBook,
+      date: firebase.firestore.Timestamp.now().toDate(),
+      transactionType: "issue",
     });
+    db.collection("books").doc(this.state.scannedDataBook).update({
+      availbility: false,
+    });
+    db.collection("student")
+      .doc(this.state.scannedDataStudent)
+      .update({
+        numberOfBooks: firebase.firestore.FieldValue.increment(1),
+      });
+    Alert.alert("bookIsIssued");
+    this.setState({ scannedDataStudent: "", scannedDataBook: "" });
   };
   render() {
     if (this.state.buttonState !== "normal" && this.state.cameraStatus) {
@@ -80,6 +127,14 @@ export default class Transaction extends React.Component {
               <Text>SCAN </Text>
             </TouchableOpacity>
           </View>
+          <TouchableOpacity
+            onPress={() => {
+              this.handleTransaction();
+            }}
+            style={[styles.scannerButton, { backgroundColor: "red" }]}
+          >
+            <Text>SUBMIT</Text>
+          </TouchableOpacity>
         </View>
       );
     }
@@ -105,5 +160,5 @@ const styles = StyleSheet.create({
     margin: 50,
     textAlign: "center",
   },
-  InputContainer:{flexDirection:'row'},
+  InputContainer: { flexDirection: "row" },
 });
