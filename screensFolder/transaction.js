@@ -5,7 +5,9 @@ import {
   StyleSheet,
   TouchableOpacity,
   TextInput,
-  Alert,
+  ToastAndroid,
+  KeyboardAvoidingView,
+  KeyboardAvoidingViewBase,
 } from "react-native";
 import * as Permissions from "expo-permissions";
 import { BarCodeScanner } from "expo-barcode-scanner";
@@ -34,14 +36,13 @@ export default class Transaction extends React.Component {
     if (this.state.buttonState === "BookID") {
       this.setState({
         scannedDataBook: data,
-
         scanned: true,
         buttonState: "normal",
       });
-    } else if (this.state.buttonState === "StudentID") {
+    } 
+    else if (this.state.buttonState === "StudentID") {
       this.setState({
         scannedDataStudent: data,
-
         scanned: true,
         buttonState: "normal",
       });
@@ -79,7 +80,25 @@ export default class Transaction extends React.Component {
       .update({
         numberOfBooks: firebase.firestore.FieldValue.increment(1),
       });
-    Alert.alert("bookIsIssued");
+    ToastAndroid.show("bookIsIssued",ToastAndroid.LONG);
+    this.setState({ scannedDataStudent: "", scannedDataBook: "" });
+  };
+  initiateBookReturn = async () => {
+    db.collection("transaction").add({
+      studentId: this.state.scannedDataStudent,
+      bookId: this.state.scannedDataBook,
+      date: firebase.firestore.Timestamp.now().toDate(),
+      transactionType: "Return",
+    });
+    db.collection("books").doc(this.state.scannedDataBook).update({
+      availbility: true,
+    });
+    db.collection("student")
+      .doc(this.state.scannedDataStudent)
+      .update({
+        numberOfBooks: firebase.firestore.FieldValue.increment(-1),
+      });
+    ToastAndroid.show("bookIsReturned",ToastAndroid.LONG);
     this.setState({ scannedDataStudent: "", scannedDataBook: "" });
   };
   render() {
@@ -94,7 +113,7 @@ export default class Transaction extends React.Component {
       );
     } else if (this.state.buttonState === "normal") {
       return (
-        <View style={styles.container}>
+        <KeyboardAvoidingView behavior='height' enabled style={styles.container}>
           <Text style={styles.text}>Transaction Screen</Text>
 
           <View style={styles.InputContainer}>
@@ -102,6 +121,8 @@ export default class Transaction extends React.Component {
               placeholder="Book ID"
               value={this.state.scannedDataBook}
               style={styles.textInput}
+              onChangeText={(vals)=>
+              {this.setState({scannedDataBook:vals})}}
             />
             <TouchableOpacity
               style={styles.scannerButton}
@@ -117,6 +138,10 @@ export default class Transaction extends React.Component {
               placeholder="STUDENT ID"
               value={this.state.scannedDataStudent}
               style={styles.textInput}
+              onChangeText={(vals)=>
+              {
+                this.setState({scannedDataStudent:vals})
+              }}
             />
             <TouchableOpacity
               style={styles.scannerButton}
@@ -135,7 +160,7 @@ export default class Transaction extends React.Component {
           >
             <Text>SUBMIT</Text>
           </TouchableOpacity>
-        </View>
+        </KeyboardAvoidingView>
       );
     }
   }
