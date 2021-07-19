@@ -8,6 +8,7 @@ import {
   ToastAndroid,
   KeyboardAvoidingView,
   KeyboardAvoidingViewBase,
+  Alert,
 } from "react-native";
 import * as Permissions from "expo-permissions";
 import { BarCodeScanner } from "expo-barcode-scanner";
@@ -39,8 +40,7 @@ export default class Transaction extends React.Component {
         scanned: true,
         buttonState: "normal",
       });
-    } 
-    else if (this.state.buttonState === "StudentID") {
+    } else if (this.state.buttonState === "StudentID") {
       this.setState({
         scannedDataStudent: data,
         scanned: true,
@@ -49,22 +49,88 @@ export default class Transaction extends React.Component {
     }
   };
   handleTransaction = async () => {
-    db.collection("books")
-      .doc(this.state.scannedDataBook)
+    var transactionType = await this.checkBookEligibility();
+    console.log(transactionType);
+    if (transactionType === false) {
+      ToastAndroid.show("THE BOOK IS NOT FROM THIS LIBRARY", ToastAndroid.LONG);
+      this.setState({ scannedDataStudent: "", scannedDataBook: "" });
+    } else if (transactionType == "issue") {
+      var isStudentEligible = await this.checkStudentEligibilityForIssue();
+      if (isStudentEligible) {
+        this.initiateBookIssue();
+        ToastAndroid.show("book Issued", ToastAndroid.LONG);
+      }
+    } else {
+      var isStudentEligible = await this.checkStudentEligibilityForReturn();
+      if (isStudentEligible) {
+        this.initiateBookReturn();
+        ToastAndroid.show("book Returned", ToastAndroid.LONG);
+      }
+    }
+  };
+  checkStudentEligibilityForReturn = async () => {
+    var transactionRef = await db
+      .collection("transaction")
+      .where("bookId", "==", this.state.scannedDataBook)
       .get()
-      .then((doc) => {
-        console.log(doc.data());
-        var book = doc.data();
-        if (book.availability === true) {
-          this.initiateBookIssue();
-          console.log("bookIssued");
+      .limit(1);
+    var isStudentEligible = "";
+    transactionRef.docs.map((doc) => {
+      var lastTransaction = doc.data();
+      if (lastTransaction.studentId === this.state.scannedDataStudent) {
+        isStudentEligible = true;
+      }else{
+        isStudentEligible=false;
+        this.setState({scannedDataBook:'',scannedDataStudent:''})
+        Alert.alert('This Student did not issue this book')
+      }
+    });
+      return(isStudentEligible);
+  };
+  checkStudentEligibilityForIssue = async () => {
+    var StudentRef = await db
+      .collection("student")
+      .where("studentId", "==", this.state.scannedDataStudent)
+      .get();
+    var isStudentEligible = "";
+    if (StudentRef.docs.length === 0) {
+      isStudentEligible = false;
+      this.setState({ scannedDataBook: "", scannedDataStudent: "" });
+      Alert.alert("Student ID is not present");
+    } else {
+      StudentRef.docs.map((doc) => {
+        var student = doc.data();
+        if (student.numberOfBooks < 2) {
+          isStudentEligible = true;
         } else {
-          this.initiateBookReturn();
-          console.log("bookReturned");
+          isStudentEligible = false;
+          this.setState({ scannedDataBook: "", scannedDataStudent: "" });
+          Alert.alert("The Student has issued a book before");
         }
       });
+    }
+    return isStudentEligible;
   };
-
+  checkBookEligibility = async () => {
+    var bookRef = await db
+      .collection("books")
+      .where("bookId", "==", this.state.scannedDataBook)
+      .get();
+    var transactionType = "";
+    if (bookRef.docs.length == 0) {
+      transactionType = false;
+    } else {
+      bookRef.docs.map((doc) => {
+        var book = doc.data();
+        if (book.availability === true) {
+          transactionType = "issue";
+        } else {
+          transactionType = "return";
+        }
+      });
+    }
+    return transactionType;
+  };
   initiateBookIssue = async () => {
     db.collection("transaction").add({
       studentId: this.state.scannedDataStudent,
@@ -80,7 +146,7 @@ export default class Transaction extends React.Component {
       .update({
         numberOfBooks: firebase.firestore.FieldValue.increment(1),
       });
-    ToastAndroid.show("bookIsIssued",ToastAndroid.LONG);
+    ToastAndroid.show("bookIsIssued", ToastAndroid.LONG);
     this.setState({ scannedDataStudent: "", scannedDataBook: "" });
   };
   initiateBookReturn = async () => {
@@ -98,7 +164,7 @@ export default class Transaction extends React.Component {
       .update({
         numberOfBooks: firebase.firestore.FieldValue.increment(-1),
       });
-    ToastAndroid.show("bookIsReturned",ToastAndroid.LONG);
+    ToastAndroid.show("bookIsReturned", ToastAndroid.LONG);
     this.setState({ scannedDataStudent: "", scannedDataBook: "" });
   };
   render() {
@@ -113,7 +179,11 @@ export default class Transaction extends React.Component {
       );
     } else if (this.state.buttonState === "normal") {
       return (
-        <KeyboardAvoidingView behavior='height' enabled style={styles.container}>
+        <KeyboardAvoidingView
+          behavior="height"
+          enabled
+          style={styles.container}
+        >
           <Text style={styles.text}>Transaction Screen</Text>
 
           <View style={styles.InputContainer}>
@@ -121,8 +191,9 @@ export default class Transaction extends React.Component {
               placeholder="Book ID"
               value={this.state.scannedDataBook}
               style={styles.textInput}
-              onChangeText={(vals)=>
-              {this.setState({scannedDataBook:vals})}}
+              onChangeText={(vals) => {
+                this.setState({ scannedDataBook: vals });
+              }}
             />
             <TouchableOpacity
               style={styles.scannerButton}
@@ -138,9 +209,8 @@ export default class Transaction extends React.Component {
               placeholder="STUDENT ID"
               value={this.state.scannedDataStudent}
               style={styles.textInput}
-              onChangeText={(vals)=>
-              {
-                this.setState({scannedDataStudent:vals})
+              onChangeText={(vals) => {
+                this.setState({ scannedDataStudent: vals });
               }}
             />
             <TouchableOpacity
