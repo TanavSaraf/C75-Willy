@@ -72,20 +72,20 @@ export default class Transaction extends React.Component {
     var transactionRef = await db
       .collection("transaction")
       .where("bookId", "==", this.state.scannedDataBook)
-      .get()
-      .limit(1);
+      .limit(1)
+      .get();
     var isStudentEligible = "";
     transactionRef.docs.map((doc) => {
       var lastTransaction = doc.data();
       if (lastTransaction.studentId === this.state.scannedDataStudent) {
         isStudentEligible = true;
-      }else{
-        isStudentEligible=false;
-        this.setState({scannedDataBook:'',scannedDataStudent:''})
-        Alert.alert('This Student did not issue this book')
+      } else {
+        isStudentEligible = false;
+        this.setState({ scannedDataBook: "", scannedDataStudent: "" });
+        Alert.alert("This Student did not issue this book");
       }
     });
-      return(isStudentEligible);
+    return isStudentEligible;
   };
   checkStudentEligibilityForIssue = async () => {
     var StudentRef = await db
@@ -139,7 +139,7 @@ export default class Transaction extends React.Component {
       transactionType: "issue",
     });
     db.collection("books").doc(this.state.scannedDataBook).update({
-      availbility: false,
+      availability: false,
     });
     db.collection("student")
       .doc(this.state.scannedDataStudent)
@@ -154,10 +154,10 @@ export default class Transaction extends React.Component {
       studentId: this.state.scannedDataStudent,
       bookId: this.state.scannedDataBook,
       date: firebase.firestore.Timestamp.now().toDate(),
-      transactionType: "Return",
+      transactionType: "return",
     });
     db.collection("books").doc(this.state.scannedDataBook).update({
-      availbility: true,
+      availability: true,
     });
     db.collection("student")
       .doc(this.state.scannedDataStudent)
