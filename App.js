@@ -1,10 +1,10 @@
 import React, { Component } from "react";
-import { createAppContainer } from "react-navigation";
+import { createAppContainer, createSwitchNavigator } from "react-navigation";
 import { createBottomTabNavigator } from "react-navigation-tabs";
 import Transaction from "./screensFolder/transaction";
 import Search from "./screensFolder/search";
 import { Image } from "react-native";
-
+import Login from './screensFolder/login'
 export default class App extends Component {
   render() {
     return <AppContainer />;
@@ -34,4 +34,8 @@ const tabNav = createBottomTabNavigator({
     },
   },
 });
-const AppContainer = createAppContainer(tabNav);
+const switchNav=createSwitchNavigator({
+  Login:{screen:Login},
+  Home:{screen:tabNav}
+})
+const AppContainer = createAppContainer(switchNav);

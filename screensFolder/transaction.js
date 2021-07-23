@@ -10,10 +10,11 @@ import {
   KeyboardAvoidingViewBase,
   Alert,
 } from "react-native";
-import * as Permissions from "expo-permissions";
-import { BarCodeScanner } from "expo-barcode-scanner";
 import db from "../config";
 import firebase from "firebase";
+import * as Permissions from "expo-permissions";
+import { BarCodeScanner } from "expo-barcode-scanner";
+
 export default class Transaction extends React.Component {
   constructor() {
     super();
